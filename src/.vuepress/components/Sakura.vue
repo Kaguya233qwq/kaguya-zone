@@ -5,7 +5,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted } from 'vue';
+import { defineComponent, ref, onMounted, onBeforeUnmount } from 'vue';
 
 class Falling {
     x: number;
@@ -40,6 +40,7 @@ class Falling {
         this.y = this.fn.y(this.y, this.y);
         this.r = this.fn.r(this.r);
 
+        // Particle goes off screen, reset its position
         if (this.x > window.innerWidth || this.x < 0 || this.y > window.innerHeight || this.y < 0) {
             this.r = this.that.getRandom('fnr');
             if (Math.random() > 0.4) {
@@ -58,34 +59,18 @@ class Falling {
 }
 
 class FallingList {
-    list: Falling[];
-
-    constructor() {
-        this.list = [];
-    }
+    list: Falling[] = [];
 
     push(falling: Falling) {
         this.list.push(falling);
     }
 
     update() {
-        for (let i = 0, len = this.list.length; i < len; i++) {
-            this.list[i].update();
-        }
+        this.list.forEach(falling => falling.update());
     }
 
     draw(cxt: CanvasRenderingContext2D) {
-        for (let i = 0, len = this.list.length; i < len; i++) {
-            this.list[i].draw(cxt);
-        }
-    }
-
-    get(i: number) {
-        return this.list[i];
-    }
-
-    size() {
-        return this.list.length;
+        this.list.forEach(falling => falling.draw(cxt));
     }
 }
 
@@ -94,8 +79,8 @@ export default defineComponent({
     setup() {
         const staticx = ref(false);
         const stop = ref<number | null>(null);
-        const num = ref(50); // Use a default number of falling elements
-        const show = ref(true); // Boolean to control showing the animation
+        const num = ref(50); // Default number of falling elements
+        const show = ref(true); // Control showing the animation
         const zIndex = ref(0); // Canvas zIndex style
 
         // Random generator function
@@ -131,7 +116,6 @@ export default defineComponent({
             return ret;
         };
 
-        // Function to start falling animation
         const startFalling = () => {
             const canvas = document.getElementById('canvas_season') as HTMLCanvasElement;
             staticx.value = true;
@@ -143,8 +127,6 @@ export default defineComponent({
 
             // Get current month to decide the season
             const month = new Date().getMonth() + 1;
-
-            // Set image based on the season
             switch (month) {
                 case 3:
                 case 4:
@@ -166,46 +148,44 @@ export default defineComponent({
                 case 2:
                     img.src = '/assets/images/snow.png';
                     break;
-                default:
-                    break;
             }
 
-            // Create falling elements
-            for (let i = 0; i < num.value; i++) {
-                const randomX = getRandom('x');
-                const randomY = getRandom('y');
-                const randomR = getRandom('r');
-                const randomS = getRandom('s');
-                const randomFnx = getRandom('fnx');
-                const randomFny = getRandom('fny');
-                const randomFnR = getRandom('fnr');
+            // Wait for the image to load before creating falling particles
+            img.onload = () => {
+                for (let i = 0; i < num.value; i++) {
+                    const randomX = getRandom('x');
+                    const randomY = getRandom('y');
+                    const randomR = getRandom('r');
+                    const randomS = getRandom('s');
+                    const randomFnx = getRandom('fnx');
+                    const randomFny = getRandom('fny');
+                    const randomFnR = getRandom('fnr');
 
-                const falling = new Falling(
-                    randomX,
-                    randomY,
-                    randomS,
-                    randomR,
-                    { x: randomFnx, y: randomFny, r: randomFnR },
-                    { getRandom },
-                    img
-                );
+                    const falling = new Falling(
+                        randomX,
+                        randomY,
+                        randomS,
+                        randomR,
+                        { x: randomFnx, y: randomFny, r: randomFnR },
+                        { getRandom },
+                        img
+                    );
 
-                falling.draw(cxt);
-                fallingList.push(falling);
-            }
+                    fallingList.push(falling);
+                }
 
-            // Animation loop
-            const animate = () => {
-                cxt.clearRect(0, 0, canvas.width, canvas.height);
-                fallingList.update();
-                fallingList.draw(cxt);
+                // Start animation after image is loaded
+                const animate = () => {
+                    cxt.clearRect(0, 0, canvas.width, canvas.height);
+                    fallingList.update();
+                    fallingList.draw(cxt);
+                    stop.value = window.requestAnimationFrame(animate);
+                };
+
                 stop.value = window.requestAnimationFrame(animate);
             };
-
-            stop.value = window.requestAnimationFrame(animate);
         };
 
-        // Function to stop the falling animation
         const stopp = () => {
             if (staticx.value) {
                 const child = document.getElementById('canvas_season');
@@ -217,11 +197,14 @@ export default defineComponent({
             }
         };
 
-        // Start falling effect when component is mounted
         onMounted(() => {
             if (show.value) {
                 startFalling();
             }
+        });
+
+        onBeforeUnmount(() => {
+            if (stop.value) window.cancelAnimationFrame(stop.value);
         });
 
         return {
