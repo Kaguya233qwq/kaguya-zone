@@ -2,7 +2,7 @@
     <div class="gallery-container">
         <div class="gallery-grid">
             <div class="gallery-item" v-for="(image, index) in images" :key="index">
-                <img ref="imageRefs" :src="image.src" :alt="image.alt" class="gallery-image"
+                <img ref="imageRefs" :data-src="image.src" :alt="image.alt" class="gallery-image"
                     :class="{ 'fade-in': image.loaded }" @load="handleImageLoad(index)" />
             </div>
         </div>
@@ -10,7 +10,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent} from 'vue';
+import { defineComponent, onMounted, ref } from 'vue';
 
 export default defineComponent({
     name: 'Gallery',
@@ -29,33 +29,27 @@ export default defineComponent({
     },
     methods: {
         handleImageLoad(index: number) {
-            // 标记图片已加载
             this.images[index].loaded = true;
         },
-        initLazyLoad() {
-            const options = {
-                root: null, // 默认是浏览器视口
-                rootMargin: '0px',
-                threshold: 0.1 // 当图片至少 10% 可见时触发
-            };
-
+        lazyLoadImages() {
+            const imageRefs = this.$refs.imageRefs as HTMLImageElement[];
             const observer = new IntersectionObserver((entries) => {
-                entries.forEach((entry) => {
+                entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         const img = entry.target as HTMLImageElement;
-                        img.src = img.dataset.src as string; // 延迟加载图片
-                        observer.unobserve(entry.target); // 加载完成后停止观察
+                        img.src = img.dataset.src!;
+                        observer.unobserve(img);
                     }
                 });
-            }, options);
+            });
 
-            // 为每个图片设置懒加载
-            const images = document.querySelectorAll('img[data-src]');
-            images.forEach((image) => observer.observe(image));
+            imageRefs.forEach(img => {
+                observer.observe(img);
+            });
         }
     },
     mounted() {
-        this.initLazyLoad(); // 初始化懒加载
+        this.lazyLoadImages();
     }
 });
 </script>
