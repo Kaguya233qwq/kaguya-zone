@@ -2,30 +2,60 @@
     <div class="gallery-container">
         <div class="gallery-grid">
             <div class="gallery-item" v-for="(image, index) in images" :key="index">
-                <img :src="image.src" :alt="image.alt" class="gallery-image" />
+                <img ref="imageRefs" :src="image.src" :alt="image.alt" class="gallery-image"
+                    :class="{ 'fade-in': image.loaded }" @load="handleImageLoad(index)" />
             </div>
         </div>
     </div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { defineComponent} from 'vue';
 
 export default defineComponent({
     name: 'Gallery',
     data() {
         return {
             images: [
-                { src: '/assets/gallery/1.png', alt: 'Image 1' },
-                { src: '/assets/gallery/2.png', alt: 'Image 2' },
-                { src: '/assets/gallery/3.png', alt: 'Image 3' },
-                { src: '/assets/gallery/4.png', alt: 'Image 4' },
-                { src: '/assets/gallery/5.png', alt: 'Image 5' },
-                { src: '/assets/gallery/6.png', alt: 'Image 6' },
-                { src: '/assets/gallery/7.png', alt: 'Image 7' }
-                // 可以继续添加更多图片
+                { src: '/assets/gallery/1.png', alt: 'Image 1', loaded: false },
+                { src: '/assets/gallery/2.png', alt: 'Image 2', loaded: false },
+                { src: '/assets/gallery/3.png', alt: 'Image 3', loaded: false },
+                { src: '/assets/gallery/4.png', alt: 'Image 4', loaded: false },
+                { src: '/assets/gallery/5.png', alt: 'Image 5', loaded: false },
+                { src: '/assets/gallery/6.png', alt: 'Image 6', loaded: false },
+                { src: '/assets/gallery/7.png', alt: 'Image 7', loaded: false },
             ]
         };
+    },
+    methods: {
+        handleImageLoad(index: number) {
+            // 标记图片已加载
+            this.images[index].loaded = true;
+        },
+        initLazyLoad() {
+            const options = {
+                root: null, // 默认是浏览器视口
+                rootMargin: '0px',
+                threshold: 0.1 // 当图片至少 10% 可见时触发
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target as HTMLImageElement;
+                        img.src = img.dataset.src as string; // 延迟加载图片
+                        observer.unobserve(entry.target); // 加载完成后停止观察
+                    }
+                });
+            }, options);
+
+            // 为每个图片设置懒加载
+            const images = document.querySelectorAll('img[data-src]');
+            images.forEach((image) => observer.observe(image));
+        }
+    },
+    mounted() {
+        this.initLazyLoad(); // 初始化懒加载
     }
 });
 </script>
@@ -61,10 +91,11 @@ export default defineComponent({
     height: 100%;
     object-fit: cover;
     display: block;
-    transition: transform 0.3s ease;
+    opacity: 0;
+    transition: opacity 0.6s ease;
 }
 
-.gallery-item:hover .gallery-image {
-    transform: scale(1.1);
+.gallery-image.fade-in {
+    opacity: 1;
 }
 </style>
